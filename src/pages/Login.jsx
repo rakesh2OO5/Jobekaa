@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BrainCircuit, ChartNoAxesColumn, Sparkles } from 'lucide-react'
 import AuthCard from '../components/AuthCard'
 import FeatureCard from '../components/FeatureCard'
 import Logo from '../components/Logo'
@@ -10,6 +10,50 @@ const features = []
 
 function Login() {
   const [selectedRole, setSelectedRole] = useState('job-seeker')
+  const [mode, setMode] = useState('login')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [resetToken, setResetToken] = useState('')
+  const navigate = useNavigate()
+
+  function handleModeChange(nextMode) {
+    setMode(nextMode)
+    setMessage('')
+    if (nextMode !== 'forgot') setResetToken('')
+  }
+
+  async function authenticate(form) {
+    setMessage('')
+    try {
+      setLoading(true)
+      const endpoint = mode === 'forgot' ? resetToken ? 'reset-password' : 'forgot-password' : mode === 'register' ? 'register' : 'login'
+      const response = await fetch(`/api/auth/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, role: selectedRole, resetToken }) })
+      const text = await response.text()
+      let data = {}
+      try { data = text ? JSON.parse(text) : {} } catch { throw new Error('The API returned an invalid response. Make sure npm run dev is running.') }
+      if (!response.ok) {
+        if (data.code === 'USER_NOT_FOUND' && mode === 'login') {
+          setMode('register')
+          throw new Error('No account was found. Complete registration to create one.')
+        }
+        throw new Error(data.message || 'The request could not be completed. Make sure the API server is running.')
+      }
+      if (mode === 'forgot') {
+        if (!resetToken) {
+          setResetToken(data.resetToken)
+          setMessage(data.message)
+          return
+        }
+        setResetToken('')
+        setMode('login')
+        setMessage(data.message)
+        return
+      }
+      localStorage.setItem('jobekaa_token', data.token)
+      localStorage.setItem('jobekaa_user', JSON.stringify(data.user))
+      navigate(data.user.role === 'recruiter' ? '/recruiter' : '/job-seeker')
+    } catch (error) { setMessage(error.message || 'Unable to continue. Please try again.') } finally { setLoading(false) }
+  }
 
   return (
     <main className="relative h-screen px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
@@ -51,7 +95,7 @@ function Login() {
           </div>
         </section>
 
-        <section className="relative flex w-full items-center justify-center overflow-hidden px-4 py-8 sm:px-8 lg:w-[55%] lg:px-10">
+        <section className="relative flex w-full items-center justify-center overflow-hidden px-4 py-4 sm:px-8 sm:py-4 lg:w-[55%] lg:px-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.16),transparent_28%),linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.64))]" />
           <motion.div
             initial={{ opacity: 0 }}
@@ -66,8 +110,8 @@ function Login() {
             className="absolute right-10 bottom-12 hidden h-28 w-28 rounded-full bg-cyan-100/80 blur-2xl lg:block"
           />
 
-          <div className="relative mt-6 mb-6 z-10 w-full">
-            <AuthCard selectedRole={selectedRole} onRoleChange={setSelectedRole} />
+          <div className="relative z-10 w-full">
+            <AuthCard selectedRole={selectedRole} onRoleChange={setSelectedRole} mode={mode} onModeChange={handleModeChange} onSubmit={authenticate} loading={loading} message={message} />
           </div>
         </section>
       </div>

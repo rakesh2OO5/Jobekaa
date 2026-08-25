@@ -1,0 +1,60 @@
+import { Router } from 'express'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import crypto from 'node:crypto'
+import User from '../models/User.js'
+
+const router = Router()
+const publicUser = (user) => ({ id: user._id, email: user.email, role: user.role })
+const tokenFor = (user) => jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' })
+
+router.post('/register', async (req, res, next) => {
+  try {
+    const { email, password, role } = req.body
+    if (!email || !password || !role) return res.status(400).json({ message: 'Email, password, and role are required.' })
+    if (password.length < 8) return res.status(400).json({ message: 'Password must contain at least 8 characters.' })
+    if (await User.exists({ email: email.toLowerCase() })) return res.status(409).json({ message: 'An account with this email already exists. Please sign in.' })
+    const user = await User.create({ email, password: await bcrypt.hash(password, 12), role })
+    return res.status(201).json({ token: tokenFor(user), user: publicUser(user) })
+  } catch (error) { return next(error) }
+})
+
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password, role } = req.body
+    const user = await User.findOne({ email: email?.toLowerCase() }).select('+password')
+    if (!user) return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'No account was found for this email.' })
+    if (!(await bcrypt.compare(password || '', user.password))) return res.status(401).json({ code: 'INVALID_PASSWORD', message: 'Incorrect email or password.' })
+    if (user.role !== role) return res.status(403).json({ message: `This account is registered as a ${user.role}. Select that role to continue.` })
+    return res.json({ token: tokenFor(user), user: publicUser(user) })
+  } catch (error) { return next(error) }
+})
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: req.body.email?.toLowerCase() }).select('+passwordResetToken +passwordResetExpiresAt')
+    if (!user) return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'No account was found for this email.' })
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    user.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex')
+    user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000)
+    await user.save()
+    return res.json({ message: 'Set a new password below. This development reset link expires in 15 minutes.', resetToken })
+  } catch (error) { return next(error) }
+})
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, password, resetToken } = req.body
+    if (!password || password.length < 8) return res.status(400).json({ message: 'Password must contain at least 8 characters.' })
+    const tokenHash = crypto.createHash('sha256').update(resetToken || '').digest('hex')
+    const user = await User.findOne({ email: email?.toLowerCase(), passwordResetToken: tokenHash, passwordResetExpiresAt: { $gt: new Date() } }).select('+password +passwordResetToken +passwordResetExpiresAt')
+    if (!user) return res.status(400).json({ message: 'This reset request is invalid or has expired.' })
+    user.password = await bcrypt.hash(password, 12)
+    user.passwordResetToken = undefined
+    user.passwordResetExpiresAt = undefined
+    await user.save()
+    return res.json({ message: 'Password updated. You can now sign in.' })
+  } catch (error) { return next(error) }
+})
+
+export default router

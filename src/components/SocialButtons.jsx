@@ -32,17 +32,17 @@ function LinkedInIcon() {
   )
 }
 
-function SocialButtons() {
+function SocialButtons({ onUnavailable }) {
   const buttonClass =
     'inline-flex w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
 
   return (
     <div className="space-y-3">
-      <button type="button" className={buttonClass}>
+      <button type="button" className={buttonClass} onClick={() => onUnavailable('Google')}>
         <GoogleIcon />
         Continue with Google
       </button>
-      <button type="button" className={buttonClass}>
+      <button type="button" className={buttonClass} onClick={() => onUnavailable('LinkedIn')}>
         <LinkedInIcon />
         Continue with LinkedIn
       </button>

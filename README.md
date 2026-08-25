@@ -1,4 +1,16 @@
-# React + Vite
+# Jobekaa
+
+## Local setup
+
+1. Copy `.env.example` to `.env` and replace the placeholder values with your MongoDB connection string and a long JWT secret.
+2. Start the full app with `npm run dev:full`.
+3. Open `http://127.0.0.1:5173`.
+
+The frontend proxies `/api` calls to the Express server on port `5000`.
+
+## AI provider configuration
+
+`AI_RESUME_RANKING_URL` and `AI_JOB_SEEKER_ANALYSIS_URL` are optional provider endpoints. Until configured, uploads return clearly labelled development-only mock analysis while preserving the API integration.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
