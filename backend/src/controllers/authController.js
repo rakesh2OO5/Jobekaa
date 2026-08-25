@@ -1,14 +1,12 @@
-import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
+import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 
-const router = Router()
 const publicUser = (user) => ({ id: user._id, email: user.email, role: user.role })
 const tokenFor = (user) => jwt.sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' })
 
-router.post('/register', async (req, res, next) => {
+export async function register(req, res, next) {
   try {
     const { email, password, role } = req.body
     if (!email || !password || !role) return res.status(400).json({ message: 'Email, password, and role are required.' })
@@ -17,9 +15,9 @@ router.post('/register', async (req, res, next) => {
     const user = await User.create({ email, password: await bcrypt.hash(password, 12), role })
     return res.status(201).json({ token: tokenFor(user), user: publicUser(user) })
   } catch (error) { return next(error) }
-})
+}
 
-router.post('/login', async (req, res, next) => {
+export async function login(req, res, next) {
   try {
     const { email, password, role } = req.body
     const user = await User.findOne({ email: email?.toLowerCase() }).select('+password')
@@ -28,9 +26,9 @@ router.post('/login', async (req, res, next) => {
     if (user.role !== role) return res.status(403).json({ message: `This account is registered as a ${user.role}. Select that role to continue.` })
     return res.json({ token: tokenFor(user), user: publicUser(user) })
   } catch (error) { return next(error) }
-})
+}
 
-router.post('/forgot-password', async (req, res, next) => {
+export async function requestPasswordReset(req, res, next) {
   try {
     const user = await User.findOne({ email: req.body.email?.toLowerCase() }).select('+passwordResetToken +passwordResetExpiresAt')
     if (!user) return res.status(404).json({ code: 'USER_NOT_FOUND', message: 'No account was found for this email.' })
@@ -40,21 +38,17 @@ router.post('/forgot-password', async (req, res, next) => {
     await user.save()
     return res.json({ message: 'Set a new password below. This development reset link expires in 15 minutes.', resetToken })
   } catch (error) { return next(error) }
-})
+}
 
-router.post('/reset-password', async (req, res, next) => {
+export async function resetPassword(req, res, next) {
   try {
     const { email, password, resetToken } = req.body
     if (!password || password.length < 8) return res.status(400).json({ message: 'Password must contain at least 8 characters.' })
     const tokenHash = crypto.createHash('sha256').update(resetToken || '').digest('hex')
     const user = await User.findOne({ email: email?.toLowerCase(), passwordResetToken: tokenHash, passwordResetExpiresAt: { $gt: new Date() } }).select('+password +passwordResetToken +passwordResetExpiresAt')
     if (!user) return res.status(400).json({ message: 'This reset request is invalid or has expired.' })
-    user.password = await bcrypt.hash(password, 12)
-    user.passwordResetToken = undefined
-    user.passwordResetExpiresAt = undefined
+    user.password = await bcrypt.hash(password, 12); user.passwordResetToken = undefined; user.passwordResetExpiresAt = undefined
     await user.save()
     return res.json({ message: 'Password updated. You can now sign in.' })
   } catch (error) { return next(error) }
-})
-
-export default router
+}
