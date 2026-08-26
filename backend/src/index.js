@@ -5,6 +5,7 @@ import cors from 'cors'
 import mongoose from 'mongoose'
 import authRoutes from './routes/auth.js'
 import analysisRoutes from './routes/analysis.js'
+import jobsRoutes from './routes/jobs.js'
 
 const app = express()
 // Atlas uses SRV records. This fallback avoids a local DNS resolver that rejects SRV queries.
@@ -14,6 +15,7 @@ app.use(express.json())
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/analysis', analysisRoutes)
+app.use('/api/jobs', jobsRoutes)
 app.use((error, _req, res, _next) => { console.error(error); res.status(500).json({ message: error.message || 'Something went wrong. Please try again.' }) })
 
 mongoose.connect(process.env.MONGODB_URI)

@@ -1,0 +1,2 @@
+import { findRecommendedJobs } from '../services/jobSearchService.js'
+export async function recommendedJobs(req, res, next) { try { const skills = String(req.query.skills || '').split(',').filter(Boolean); const result = await findRecommendedJobs({ role: req.query.role || 'Software Engineer', skills, location: req.query.location || 'india', tag: req.query.tag }); res.json({ success: true, ...result }) } catch (error) { next(error) } }

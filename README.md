@@ -8,9 +8,13 @@
 
 The frontend proxies `/api` calls to the Express server on port `5000`.
 
-## AI provider configuration
+## Required API Configuration
 
-`AI_RESUME_RANKING_URL` and `AI_JOB_SEEKER_ANALYSIS_URL` are optional provider endpoints. Until configured, uploads return clearly labelled development-only mock analysis while preserving the API integration.
+Keep all credentials in `backend/.env`; they are never sent to React. The job-seeker pipeline requires `AFFINDA_API_KEY`, `AFFINDA_WORKSPACE_ID`, and `AFFINDA_DOCUMENT_TYPE_ID` because Affinda v3 document upload requires a Bearer token plus `workspace` and `documentType` form fields. Obtain them from Affinda Settings -> API Keys, Workspace -> Workflow -> Integrations, and the Resume Parser document type settings.
+
+`GEMINI_API_KEY` is required for contextual resume reasoning and is created in Google AI Studio. `GEMINI_MODEL` is optional because the backend defaults to `gemini-2.0-flash`.
+
+The runtime pipeline is: Multer upload -> Affinda v3 parsing -> stable resume normalization -> transparent role matching -> Gemini structured JSON reasoning -> React result data. Missing keys return a clear configuration error without producing fake analysis.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
